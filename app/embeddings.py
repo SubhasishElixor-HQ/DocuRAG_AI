@@ -1,4 +1,5 @@
 from langchain_huggingface import HuggingFaceEmbeddings
+
 from app.config import EMBEDDING_MODEL
 
 
@@ -9,9 +10,3 @@ def create_embeddings():
     )
 
     return embeddings
-
-# "What is normalization?"
-#           ↓
-#      Embedding Model
-#           ↓
-# [0.12, -0.42, 0.73, ...]

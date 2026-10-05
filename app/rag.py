@@ -1,9 +1,3 @@
-# Retriever
-#     +
-# LLM
-#     ↓
-# RAG
-
 from langchain_core.prompts import ChatPromptTemplate
 
 
@@ -13,14 +7,13 @@ def create_rag_chain(retriever, llm):
         """
 You are a document question-answering assistant.
 
-Answer the question using ONLY the provided context.
+Answer the question ONLY using the provided context.
 
-Do not use outside knowledge.
-Do not invent information.
-
-If the answer cannot be found in the context, say:
-
-"I could not find this information in the uploaded documents."
+Rules:
+1. Do not use outside knowledge.
+2. Do not invent information.
+3. If the answer is not present in the context, say:
+   "I could not find this information in the uploaded documents."
 
 Context:
 {context}

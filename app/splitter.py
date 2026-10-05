@@ -11,16 +11,3 @@ def split_documents(documents):
     chunks = splitter.split_documents(documents)
 
     return chunks
-
-# PDF
-#  ↓
-# Page 1
-# Page 2
-# Page 3
-#  ↓
-# Chunks
-#  ├── Chunk 1
-#  ├── Chunk 2
-#  ├── Chunk 3
-#  ├── Chunk 4
-#  └── ...

@@ -1,4 +1,6 @@
+# it create one database for all the documents in the documents folder. It does not create a database for each document.
 from langchain_community.vectorstores import FAISS
+
 from app.config import VECTORSTORE_PATH
 
 
@@ -9,17 +11,8 @@ def create_vectorstore(chunks, embeddings):
         embeddings
     )
 
-    vectorstore.save_local(VECTORSTORE_PATH)
-
-    return vectorstore
-
-
-def load_vectorstore(embeddings):
-
-    vectorstore = FAISS.load_local(
-        VECTORSTORE_PATH,
-        embeddings,
-        allow_dangerous_deserialization=True
+    vectorstore.save_local(
+        VECTORSTORE_PATH
     )
 
     return vectorstore
