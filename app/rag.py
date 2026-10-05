@@ -1,7 +1,13 @@
 from langchain_core.prompts import ChatPromptTemplate
 
+from app.retriever import retrieve_documents
 
-def create_rag_chain(retriever, llm):
+
+def create_rag_chain(
+    vectorstore,
+    llm,
+    document_name=None
+):
 
     prompt = ChatPromptTemplate.from_template(
         """
@@ -10,6 +16,7 @@ You are a document question-answering assistant.
 Answer the question ONLY using the provided context.
 
 Rules:
+
 1. Use only the provided context.
 2. Do not use outside knowledge.
 3. Do not invent information.
@@ -29,10 +36,13 @@ Answer:
 
     def ask(question):
 
-        documents = retriever.invoke(question)
+        documents = retrieve_documents(
+            vectorstore=vectorstore,
+            question=question,
+            document_name=document_name
+        )
 
         if not documents:
-
             return {
                 "answer": (
                     "I could not find this information "
@@ -54,12 +64,11 @@ Answer:
         response = llm.invoke(messages)
 
         sources = []
-
         seen_sources = set()
 
         for document in documents:
 
-            document_name = document.metadata.get(
+            document_name_value = document.metadata.get(
                 "document_name",
                 "Unknown document"
             )
@@ -70,14 +79,14 @@ Answer:
             )
 
             source_key = (
-                document_name,
+                document_name_value,
                 page
             )
 
             if source_key not in seen_sources:
 
                 sources.append({
-                    "document": document_name,
+                    "document": document_name_value,
                     "page": page + 1
                 })
 
