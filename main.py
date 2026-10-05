@@ -10,8 +10,11 @@ from app.rag import create_rag_chain
 def main():
 
     print("\n======================================")
-    print("      RAG V2 - Multiple Documents")
+    print("       RAG V3 - Document Filter")
     print("======================================\n")
+
+
+    # 1. Load documents
 
     print("1. Loading PDF documents...")
 
@@ -20,6 +23,8 @@ def main():
     print(f"Loaded {len(documents)} pages.\n")
 
 
+    # 2. Split documents
+
     print("2. Splitting documents...")
 
     chunks = split_documents(documents)
@@ -27,12 +32,16 @@ def main():
     print(f"Created {len(chunks)} chunks.\n")
 
 
+    # 3. Embeddings
+
     print("3. Creating embedding model...")
 
     embeddings = create_embeddings()
 
     print("Embeddings ready.\n")
 
+
+    # 4. Vector database
 
     print("4. Creating FAISS vector database...")
 
@@ -44,78 +53,167 @@ def main():
     print("Vector database created.\n")
 
 
-    print("5. Creating retriever...")
+    # 5. LLM
 
-    retriever = create_retriever(
-        vectorstore
-    )
-
-    print("Retriever ready.\n")
-
-
-    print("6. Loading LLM...")
+    print("5. Loading LLM...")
 
     llm = create_llm()
 
     print("LLM ready.\n")
 
 
-    rag = create_rag_chain(
-        retriever,
-        llm
+    print("======================================")
+    print("Available documents:")
+    print("======================================")
+
+    document_names = sorted(
+        {
+            document.metadata["document_name"]
+            for document in documents
+        }
     )
 
+    for index, document_name in enumerate(
+        document_names,
+        start=1
+    ):
 
-    print("======================================")
-    print("RAG chatbot is ready!")
-    print("Type 'exit' to stop.")
-    print("======================================")
+        print(
+            f"{index}. {document_name}"
+        )
+
+
+    print("\nEnter document number to filter.")
+    print("Enter 0 to search all documents.")
 
 
     while True:
 
-        question = input("\nAsk a question: ")
+        choice = input(
+            "\nSelect document: "
+        ).strip()
 
-        if question.lower().strip() in ["exit", "quit"]:
+
+        if choice == "exit":
 
             print("Goodbye!")
 
             break
 
 
-        result = rag(question)
+        if not choice.isdigit():
 
-
-        print("\nAnswer:")
-        print(result["answer"])
-
-
-        print("\nSources:")
-
-        seen_sources = set()
-
-
-        for source in result["sources"]:
-
-            source_name = source["source"]
-            page = source["page"] + 1
-
-            source_key = (
-                source_name,
-                page
+            print(
+                "Please enter a valid number."
             )
 
+            continue
 
-            if source_key not in seen_sources:
+
+        choice = int(choice)
+
+
+        if choice == 0:
+
+            selected_document = None
+
+        elif 1 <= choice <= len(document_names):
+
+            selected_document = document_names[
+                choice - 1
+            ]
+
+        else:
+
+            print(
+                "Invalid document number."
+            )
+
+            continue
+
+
+        print(
+            f"\nSelected: "
+            f"{selected_document or 'ALL DOCUMENTS'}"
+        )
+
+
+        # Create retriever
+
+        retriever = create_retriever(
+            vectorstore,
+            selected_document
+        )
+
+
+        # Create RAG
+
+        rag = create_rag_chain(
+            retriever,
+            llm
+        )
+
+
+        print(
+            "\nYou can now ask questions."
+        )
+
+        print(
+            "Type 'back' to select another document."
+        )
+
+
+        while True:
+
+            question = input(
+                "\nAsk a question: "
+            ).strip()
+
+
+            if question.lower() == "back":
+
+                break
+
+
+            if question.lower() == "exit":
+
+                print("Goodbye!")
+
+                return
+
+
+            if not question:
 
                 print(
-                    f"- {source_name} "
-                    f"(page {page})"
+                    "Please enter a question."
                 )
 
-                seen_sources.add(
-                    source_key
+                continue
+
+
+            result = rag(question)
+
+
+            print("\nAnswer:")
+            print(result["answer"])
+
+
+            print("\nSources:")
+
+            if not result["sources"]:
+
+                print(
+                    "No sources found."
                 )
+
+            else:
+
+                for source in result["sources"]:
+
+                    print(
+                        f"- {source['document']} "
+                        f"— Page {source['page']}"
+                    )
 
 
 if __name__ == "__main__":

@@ -10,10 +10,12 @@ You are a document question-answering assistant.
 Answer the question ONLY using the provided context.
 
 Rules:
-1. Do not use outside knowledge.
-2. Do not invent information.
-3. If the answer is not present in the context, say:
+1. Use only the provided context.
+2. Do not use outside knowledge.
+3. Do not invent information.
+4. If the answer is not in the context, say:
    "I could not find this information in the uploaded documents."
+5. Give a concise and clear answer.
 
 Context:
 {context}
@@ -29,6 +31,16 @@ Answer:
 
         documents = retriever.invoke(question)
 
+        if not documents:
+
+            return {
+                "answer": (
+                    "I could not find this information "
+                    "in the uploaded documents."
+                ),
+                "sources": []
+            }
+
         context = "\n\n".join(
             document.page_content
             for document in documents
@@ -43,15 +55,33 @@ Answer:
 
         sources = []
 
+        seen_sources = set()
+
         for document in documents:
 
-            source = document.metadata.get("source")
-            page = document.metadata.get("page")
+            document_name = document.metadata.get(
+                "document_name",
+                "Unknown document"
+            )
 
-            sources.append({
-                "source": source,
-                "page": page
-            })
+            page = document.metadata.get(
+                "page",
+                0
+            )
+
+            source_key = (
+                document_name,
+                page
+            )
+
+            if source_key not in seen_sources:
+
+                sources.append({
+                    "document": document_name,
+                    "page": page + 1
+                })
+
+                seen_sources.add(source_key)
 
         return {
             "answer": response.content,
