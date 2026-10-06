@@ -1,28 +1,49 @@
 from langchain_core.prompts import ChatPromptTemplate
 
-from app.retriever import retrieve_documents
+from app.hybrid_search import HybridSearch
+from app.reranker import Reranker
 
 
 def create_rag_chain(
+    documents,
     vectorstore,
     llm,
-    document_name=None
+    selected_document=None
 ):
+
+    # =======================================
+    # HYBRID SEARCH
+    # =======================================
+
+    hybrid_search = HybridSearch(
+        documents,
+        vectorstore
+    )
+
+    # =======================================
+    # RERANKER
+    # =======================================
+
+    reranker = Reranker()
+
+    # =======================================
+    # PROMPT
+    # =======================================
 
     prompt = ChatPromptTemplate.from_template(
         """
-You are a document question-answering assistant.
+You are a helpful research paper assistant.
 
-Answer the question ONLY using the provided context.
+Answer the user's question using ONLY
+the provided context.
 
-Rules:
+If the answer cannot be found in the
+provided context, say:
 
-1. Use only the provided context.
-2. Do not use outside knowledge.
-3. Do not invent information.
-4. If the answer is not in the context, say:
-   "I could not find this information in the uploaded documents."
-5. Give a concise and clear answer.
+"I could not find the answer in the
+provided documents."
+
+Do not invent information.
 
 Context:
 {context}
@@ -34,67 +55,119 @@ Answer:
 """
     )
 
-    def ask(question):
+    # =======================================
+    # RAG FUNCTION
+    # =======================================
 
-        documents = retrieve_documents(
-            vectorstore=vectorstore,
-            question=question,
-            document_name=document_name
+    def rag(question):
+
+        # -----------------------------------
+        # STEP 1
+        # Hybrid retrieval
+        # -----------------------------------
+
+        candidates = hybrid_search.search(
+            question,
+            k=10
         )
 
-        if not documents:
-            return {
-                "answer": (
-                    "I could not find this information "
-                    "in the uploaded documents."
-                ),
-                "sources": []
-            }
+        # -----------------------------------
+        # STEP 2
+        # Filter selected document
+        # -----------------------------------
+
+        if selected_document:
+
+            candidates = [
+                document
+                for document in candidates
+                if document.metadata.get(
+                    "document_name"
+                ) == selected_document
+            ]
+
+        # -----------------------------------
+        # STEP 3
+        # RERANK
+        # -----------------------------------
+
+        reranked_results = reranker.rerank(
+            question,
+            candidates,
+            top_k=5
+        )
+
+        # -----------------------------------
+        # STEP 4
+        # Get final documents
+        # -----------------------------------
+
+        final_documents = [
+            document
+            for document, score
+            in reranked_results
+        ]
+
+        # -----------------------------------
+        # STEP 5
+        # Create context
+        # -----------------------------------
 
         context = "\n\n".join(
             document.page_content
-            for document in documents
+            for document in final_documents
         )
 
-        messages = prompt.format_messages(
+        # -----------------------------------
+        # STEP 6
+        # Create prompt
+        # -----------------------------------
+
+        formatted_prompt = prompt.format(
             context=context,
             question=question
         )
 
-        response = llm.invoke(messages)
+        # -----------------------------------
+        # STEP 7
+        # LLM
+        # -----------------------------------
+
+        response = llm.invoke(
+            formatted_prompt
+        )
+
+        # -----------------------------------
+        # STEP 8
+        # Sources
+        # -----------------------------------
 
         sources = []
-        seen_sources = set()
 
-        for document in documents:
+        for document, score in reranked_results:
 
-            document_name_value = document.metadata.get(
-                "document_name",
-                "Unknown document"
+            sources.append(
+                {
+                    "document": document.metadata.get(
+                        "document_name",
+                        "Unknown"
+                    ),
+                    "page": document.metadata.get(
+                        "page",
+                        "Unknown"
+                    ),
+                    "score": float(score)
+                }
             )
 
-            page = document.metadata.get(
-                "page",
-                0
-            )
-
-            source_key = (
-                document_name_value,
-                page
-            )
-
-            if source_key not in seen_sources:
-
-                sources.append({
-                    "document": document_name_value,
-                    "page": page + 1
-                })
-
-                seen_sources.add(source_key)
+        # -----------------------------------
+        # STEP 9
+        # Return
+        # -----------------------------------
 
         return {
             "answer": response.content,
             "sources": sources
         }
 
-    return ask
+    return rag
