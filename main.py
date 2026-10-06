@@ -9,46 +9,79 @@ from app.rag import create_rag_chain
 def main():
 
     print("\n======================================")
-    print("       RAG V4 - Better Retrieval")
+    print("       RAG V4 - Hybrid Search")
     print("======================================\n")
+
+   
+    # 1. LOAD PDF
+   
 
     print("1. Loading PDF documents...")
 
     documents = load_all_pdfs()
 
-    print(f"Loaded {len(documents)} pages.\n")
+    print(
+        f"Loaded {len(documents)} pages.\n"
+    )
 
+    
+    # 2. SPLIT DOCUMENTS
+   
 
     print("2. Splitting documents...")
 
-    chunks = split_documents(documents)
+    chunks = split_documents(
+        documents
+    )
 
-    print(f"Created {len(chunks)} chunks.\n")
+    print(
+        f"Created {len(chunks)} chunks.\n"
+    )
 
+    
+    # 3. EMBEDDINGS
+    
 
     print("3. Creating embedding model...")
 
     embeddings = create_embeddings()
 
-    print("Embeddings ready.\n")
+    print(
+        "Embeddings ready.\n"
+    )
 
+   
+    # 4. FAISS
+   
 
-    print("4. Creating FAISS vector database...")
+    print(
+        "4. Creating FAISS vector database..."
+    )
 
     vectorstore = create_vectorstore(
         chunks,
         embeddings
     )
 
-    print("Vector database created.\n")
+    print(
+        "Vector database created.\n"
+    )
 
+    
+    # 5. LLM
+    
 
     print("5. Loading LLM...")
 
     llm = create_llm()
 
-    print("LLM ready.\n")
+    print(
+        "LLM ready.\n"
+    )
 
+    
+    # 6. DOCUMENT LIST
+   
 
     print("======================================")
     print("Available documents:")
@@ -56,24 +89,28 @@ def main():
 
     document_names = sorted(
         {
-            document.metadata["document_name"]
+            document.metadata[
+                "document_name"
+            ]
             for document in documents
         }
     )
-
 
     for index, document_name in enumerate(
         document_names,
         start=1
     ):
+
         print(
             f"{index}. {document_name}"
         )
 
-
     print("\nEnter document number to filter.")
     print("Enter 0 to search all documents.")
 
+  
+    # DOCUMENT SELECTION
+   
 
     while True:
 
@@ -81,6 +118,8 @@ def main():
             "\nSelect document: "
         ).strip()
 
+        # EXIT
+        
 
         if choice.lower() == "exit":
 
@@ -88,6 +127,8 @@ def main():
 
             break
 
+        # VALIDATION
+       
 
         if not choice.isdigit():
 
@@ -97,21 +138,29 @@ def main():
 
             continue
 
-
         choice = int(choice)
 
+       
+        # ALL DOCUMENTS
+       
 
         if choice == 0:
 
             selected_document = None
 
+        
+        # SPECIFIC DOCUMENT
+        
 
-        elif 1 <= choice <= len(document_names):
+        elif 1 <= choice <= len(
+            document_names
+        ):
 
             selected_document = (
-                document_names[choice - 1]
+                document_names[
+                    choice - 1
+                ]
             )
-
 
         else:
 
@@ -121,25 +170,33 @@ def main():
 
             continue
 
-
         print(
             f"\nSelected: "
             f"{selected_document or 'ALL DOCUMENTS'}"
         )
 
+        
+        # CREATE RAG
+       
 
         rag = create_rag_chain(
+            documents,
             vectorstore,
             llm,
             selected_document
         )
 
+        print(
+            "\nYou can now ask questions."
+        )
 
-        print("\nYou can now ask questions.")
         print(
             "Type 'back' to select another document."
         )
 
+       
+        # QUESTION LOOP
+        
 
         while True:
 
@@ -147,11 +204,16 @@ def main():
                 "\nAsk a question: "
             ).strip()
 
-
+            
+            # BACK
+            
             if question.lower() == "back":
 
                 break
 
+            
+            # EXIT
+            
 
             if question.lower() == "exit":
 
@@ -159,6 +221,9 @@ def main():
 
                 return
 
+            
+            # EMPTY QUESTION
+            
 
             if not question:
 
@@ -168,28 +233,39 @@ def main():
 
                 continue
 
+            
+            # RAG
+            
 
-            result = rag(question)
+            result = rag(
+                question
+            )
 
-
+            
+            # ANSWER
+           
             print("\nAnswer:")
 
             print(
                 result["answer"]
             )
 
+            # SOURCES
+           
 
             print("\nSources:")
 
-
             if not result["sources"]:
 
-                print("No sources found.")
-
+                print(
+                    "No sources found."
+                )
 
             else:
 
-                for source in result["sources"]:
+                for source in result[
+                    "sources"
+                ]:
 
                     print(
                         f"- {source['document']} "
